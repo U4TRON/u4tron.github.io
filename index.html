@@ -72,7 +72,7 @@
   .message.user { text-align: right; color: var(--msg-user-color); border-bottom: 1px solid var(--border-color); padding-bottom: 15px; }
   .message.ai { text-align: left; color: var(--msg-ai-color); border-bottom: 1px solid var(--border-color); padding-bottom: 15px; }
   .speaker-name { font-size: 0.7rem; font-weight: bold; margin-bottom: 5px; display: block; opacity: 0.7; }
-  .code-block { background: rgba(0,0,0,0.8); border: 1px solid var(--border-color); padding: 10px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; margin-top: 10px; color: #fff; white-space: pre-wrap; text-align: left; }
+  .code-block { background: rgba(0,0,0,0.8); border: 1px solid var(--border-color); padding: 10px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; overflow-x: auto; margin-top: 10px; color: #fff; white-space: pre-wrap; word-break: break-word; text-align: left; }
   .ai-tools { display: flex; gap: 10px; margin-top: 10px; justify-content: flex-start; }
   .tool-btn { background: rgba(0,0,0,0.5); border: 1px solid var(--border-color); color: var(--text-color); padding: 4px 10px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; }
   .typing { display: none; align-self: flex-start; color: var(--text-color); font-size: 0.8rem; margin-bottom: 10px;}
@@ -126,6 +126,15 @@
   .mini-help { position: absolute; right: -9px; bottom: -9px; width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); font-size: 0.6rem; font-weight: bold; font-family: 'Roboto Mono', monospace; display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; z-index: 2; }
   #ayudaNormalModal { position: absolute; inset: 0; background: rgba(0,0,0,0.8); z-index: 300; display: none; flex-direction: column; padding: 20px; }
   #ayudaNormalModal.open { display: flex; }
+
+  /* ===== CÓDIGO CON BOTÓN COPIAR Y TABLAS ===== */
+  .code-wrap { position: relative; margin-top: 10px; }
+  .code-wrap .code-block { margin-top: 0; padding-top: 36px; }
+  .copy-btn { position: absolute; top: 6px; right: 6px; z-index: 2; background: var(--input-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 4px; padding: 4px 10px; font-family: 'Roboto Mono', monospace; font-size: 0.7rem; cursor: pointer; }
+  .tabla-wrap { overflow-x: auto; margin: 10px 0; }
+  .tabla-wrap table { border-collapse: collapse; font-size: 0.8rem; min-width: 100%; }
+  .tabla-wrap th, .tabla-wrap td { border: 1px solid var(--border-color); padding: 6px 8px; text-align: left; vertical-align: top; min-width: 90px; }
+  .tabla-wrap th { background: rgba(255,255,255,0.08); }
 </style>
 <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </head>
@@ -522,13 +531,24 @@ const prompts = {
   }
 };
 
+  // ===== FECHA DE HOY Y HONESTIDAD CON LO RECIENTE =====
+  function notaFecha() {
+    const ahora = new Date();
+    if (idiomaActual === 'en') {
+      const f = ahora.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+      return ' Today is ' + f + '. Your knowledge may be outdated: for news, releases, prices or recent events, say honestly (without leaving your personality) that your information may not be current and that you cannot browse the internet. Never invent dates or facts.';
+    }
+    const f = ahora.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    return ' Hoy es ' + f + '. Tu conocimiento puede estar desactualizado: si te preguntan por noticias, lanzamientos, precios o hechos recientes, admite (sin salirte de tu personalidad) que tu información puede no estar al día y que no puedes buscar en internet. Nunca inventes fechas ni datos.';
+  }
+
   function construirPrompt() {
     const p = prompts[idiomaActual];
     let prompt = p.malvado;
     if (comfyMode) prompt = p.comfy;
     if (modoNormal) prompt = p.normal;
     if (esCreador) prompt = p.creador;
-    return prompt;
+    return prompt + notaFecha();
   }
 
   function reiniciarHistorial() {
@@ -545,6 +565,7 @@ const prompts = {
     localStorage.setItem('u4tron_normal', modoNormal);
     actualizarBotonNormal();
     const nuevoPrompt = construirPrompt();
+    historial = historial.filter(m => !(m.role === 'system' && String(m.content).indexOf('CAMBIO DE PERSONALIDAD') === 0));
     if (historial.length && historial[0].role === 'system') historial[0].content = nuevoPrompt;
     historial.push({ role: 'system', content: 'CAMBIO DE PERSONALIDAD. A partir de ahora ignora el estilo de tus respuestas anteriores y responde así: ' + nuevoPrompt });
     let aviso;
@@ -719,6 +740,42 @@ const prompts = {
     historial.push({ role: "assistant", content: saludo });
   }
 
+  // ===== SOLO MANDAR LO RECIENTE (evita "Request too large") =====
+  function prepararMensajesParaApi() {
+    const base = (historial[0] && historial[0].role === 'system') ? [historial[0]] : [];
+    const resto = historial.slice(base.length);
+    const elegidos = [];
+    let total = 0;
+    for (let i = resto.length - 1; i >= 0; i--) {
+      const esUltimo = (i === resto.length - 1);
+      let contenido = String(resto[i].content || '');
+      const tope = esUltimo ? 6000 : 2500;
+      if (contenido.length > tope) contenido = contenido.slice(0, tope) + (esUltimo ? '' : ' [...]');
+      if (!esUltimo && total + contenido.length > 12000) break;
+      total += contenido.length;
+      elegidos.unshift({ role: resto[i].role, content: contenido });
+    }
+    return base.concat(elegidos);
+  }
+
+  // ===== ERRORES EN LENGUAJE SENCILLO =====
+  function mensajeAmable(error) {
+    const m = String((error && error.message) || '').toLowerCase();
+    const st = error && error.status;
+    const en = idiomaActual === 'en';
+    if (st === 429 || st === 413 || m.indexOf('rate limit') !== -1 || m.indexOf('tokens per minute') !== -1 || m.indexOf('too large') !== -1) {
+      return en ? 'ERROR: Too much traffic or the conversation is too long. Wait a moment and try again, or open a new chat.'
+                : 'ERROR: Hay demasiado tráfico o la conversación es muy larga. Espera un momento e inténtalo de nuevo, o abre un chat nuevo.';
+    }
+    if (st === 403) {
+      return en ? 'ERROR: Access blocked.' : 'ERROR: Acceso bloqueado.';
+    }
+    if (m.indexOf('failed to fetch') !== -1 || m.indexOf('networkerror') !== -1 || m.indexOf('load failed') !== -1) {
+      return en ? 'ERROR: No connection. Check your internet and try again.' : 'ERROR: Sin conexión. Revisa tu internet e inténtalo de nuevo.';
+    }
+    return en ? 'ERROR: Something went wrong. Try again.' : 'ERROR: Algo salió mal. Inténtalo de nuevo.';
+  }
+
   async function enviarMensaje() {
     const input = document.getElementById('userInput');
     const texto = input.value.trim();
@@ -744,9 +801,15 @@ const prompts = {
       const respuesta = await fetch(URL_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: historial })
+        body: JSON.stringify({ messages: prepararMensajesParaApi() })
       });
-      if (!respuesta.ok) { const errorData = await respuesta.json(); throw new Error(errorData.error.message || "Error API"); }
+      if (!respuesta.ok) {
+        let detalle = '';
+        try { const errorData = await respuesta.json(); detalle = (errorData && errorData.error && errorData.error.message) || ''; } catch (e) {}
+        const err = new Error(detalle || 'Error API');
+        err.status = respuesta.status;
+        throw err;
+      }
       const data = await respuesta.json();
       document.getElementById('typingIndicator').style.display = 'none';
       document.getElementById('sendBtn').disabled = false;
@@ -756,7 +819,7 @@ const prompts = {
       } else { agregarMensaje("ERROR: Nucleo no responde.", 'ai', esCreador); }
     } catch (error) {
       document.getElementById('typingIndicator').style.display = 'none'; document.getElementById('sendBtn').disabled = false;
-      agregarMensaje("ERROR: " + error.message, 'ai', esCreador);
+      agregarMensaje(mensajeAmable(error), 'ai', esCreador);
     }
     scrollToBottom();
   }
@@ -775,9 +838,9 @@ const prompts = {
   // ===== VOZ (NATIVA DEL TELÉFONO, CONFIGURABLE) =====
   function limpiarParaVoz(texto) {
     return texto
-      .replace(/```[\s\S]*?```/g, ' bloque de código omitido ')
+      .replace(/```[\s\S]*?(```|$)/g, ' bloque de código omitido ')
       .replace(/\$\$[\s\S]*?\$\$|\$[^$]*\$/g, ' fórmula ')
-      .replace(/[*_#`>~]/g, '')
+      .replace(/[*_#`>~|]/g, '')
       .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
       .replace(/\s+/g, ' ')
       .trim();
@@ -933,15 +996,130 @@ const prompts = {
     }, 150);
   }
 
-  // ===== FORMATO DE TEXTO (escapa primero, luego aplica estilos) =====
-  function formatearTexto(t) {
-    return t
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+  // ===== FORMATO DE TEXTO: negritas, cursivas, títulos, tablas y código =====
+  function escaparHtml(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+
+  function formatoInline(s) {
+    return escaparHtml(s)
+      .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+      .replace(/(^|[^*\w])\*(?!\s)([^*\n]+?)\*(?!\w)/g, '$1<i>$2</i>')
+      .replace(/\*\*/g, '');
+  }
+
+  function formatearBloque(t) {
+    return formatoInline(t)
       .replace(/^#{1,6}\s*(.+)$/gm, '<b>$1</b>')
       .replace(/^-{3,}$/gm, '<hr style="border:0;border-top:1px solid var(--border-color);margin:10px 0;">')
-      .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
-      .replace(/\*\*/g, '')
       .replace(/\n/g, "<br>");
+  }
+
+  function esFilaTabla(l) {
+    const t = l.trim();
+    return t.charAt(0) === '|' && t.indexOf('|', 1) !== -1;
+  }
+
+  function esSeparadorTabla(l) {
+    const t = l.trim();
+    return t.indexOf('|') !== -1 && t.indexOf('-') !== -1 && t.replace(/[|:\-\s]/g, '') === '';
+  }
+
+  function celdasDeFila(l) {
+    let t = l.trim();
+    if (t.charAt(0) === '|') t = t.slice(1);
+    if (t.charAt(t.length - 1) === '|') t = t.slice(0, -1);
+    return t.split('|').map(c => c.trim());
+  }
+
+  function construirTabla(filas) {
+    const encabezado = celdasDeFila(filas[0]);
+    const cuerpo = filas.slice(2).map(celdasDeFila);
+    let cols = encabezado.length;
+    cuerpo.forEach(f => { if (f.length > cols) cols = f.length; });
+    let h = '<div class="tabla-wrap"><table><thead><tr>';
+    for (let i = 0; i < cols; i++) h += '<th>' + formatoInline(encabezado[i] || '') + '</th>';
+    h += '</tr></thead><tbody>';
+    cuerpo.forEach(fila => {
+      h += '<tr>';
+      for (let i = 0; i < cols; i++) h += '<td>' + formatoInline(fila[i] || '') + '</td>';
+      h += '</tr>';
+    });
+    return h + '</tbody></table></div>';
+  }
+
+  function formatearTexto(t) {
+    const lineas = t.split('\n');
+    const salida = [];
+    let buffer = [];
+    const volcar = () => {
+      if (buffer.length) { salida.push(formatearBloque(buffer.join('\n'))); buffer = []; }
+    };
+    let i = 0;
+    while (i < lineas.length) {
+      if (esFilaTabla(lineas[i])) {
+        let j = i;
+        const filas = [];
+        while (j < lineas.length && esFilaTabla(lineas[j])) { filas.push(lineas[j]); j++; }
+        if (filas.length >= 2 && esSeparadorTabla(filas[1])) {
+          volcar();
+          salida.push(construirTabla(filas));
+          i = j;
+          continue;
+        }
+      }
+      buffer.push(lineas[i]);
+      i++;
+    }
+    volcar();
+    return salida.join('');
+  }
+
+  function bloqueCodigo(codigo) {
+    return '<div class="code-wrap"><button class="copy-btn" type="button">' + (idiomaActual === 'en' ? 'Copy' : 'Copiar') + '</button><div class="code-block">' + escaparHtml(codigo) + '</div></div>';
+  }
+
+  function procesarMensaje(texto) {
+    let html = '';
+    let resto = texto;
+    while (resto) {
+      const m = resto.match(/```[a-zA-Z0-9+#-]*[ \t]*(\r?\n|$)/);
+      if (!m) { html += formatearTexto(resto); break; }
+      const antes = resto.slice(0, m.index).replace(/\n$/, '');
+      if (antes) html += formatearTexto(antes);
+      const despues = resto.slice(m.index + m[0].length);
+      const cierre = despues.indexOf('```');
+      let codigo, siguiente;
+      if (cierre === -1) { codigo = despues; siguiente = ''; }
+      else { codigo = despues.slice(0, cierre); siguiente = despues.slice(cierre + 3).replace(/^\r?\n/, ''); }
+      html += bloqueCodigo(codigo.replace(/\n$/, ''));
+      resto = siguiente;
+    }
+    return html;
+  }
+
+  function copiarAlterno(texto, ok) {
+    const ta = document.createElement('textarea');
+    ta.value = texto;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    ta.style.userSelect = 'text'; ta.style.webkitUserSelect = 'text';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); ok(); } catch (e) { alert('No se pudo copiar.'); }
+    document.body.removeChild(ta);
+  }
+
+  function copiarCodigo(btn) {
+    const texto = btn.parentElement.querySelector('.code-block').textContent;
+    const ok = () => {
+      btn.textContent = idiomaActual === 'en' ? 'Copied' : 'Copiado';
+      setTimeout(() => { btn.textContent = idiomaActual === 'en' ? 'Copy' : 'Copiar'; }, 1500);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(texto).then(ok).catch(() => copiarAlterno(texto, ok));
+    } else {
+      copiarAlterno(texto, ok);
+    }
   }
 
 function agregarMensaje(texto, tipo, esCreadorStyle = false, noGuardar = false) {
@@ -952,16 +1130,10 @@ function agregarMensaje(texto, tipo, esCreadorStyle = false, noGuardar = false) 
   if (tipo === 'user') { nameSpan.innerText = idiomaActual === 'en' ? 'YOU' : 'TÚ'; } else { nameSpan.innerText = 'U4TRON'; }
   div.appendChild(nameSpan);
 
-  let htmlProcesado = ''; const regexCodigo = /```(?:html|javascript|js|css|python|bash|xml|json)?\n([\s\S]*?)```/g;
-  let ultimoIndice = 0; let match;
-  while ((match = regexCodigo.exec(texto)) !== null) {
-    const textoNormal = texto.slice(ultimoIndice, match.index);
-    htmlProcesado += formatearTexto(textoNormal);
-    const codigoLimpio = match[1].replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    htmlProcesado += `<div class="code-block">${codigoLimpio}</div>`; ultimoIndice = regexCodigo.lastIndex;
-  }
-  htmlProcesado += formatearTexto(texto.slice(ultimoIndice));
-  const p = document.createElement('div'); p.innerHTML = htmlProcesado || " "; div.appendChild(p);
+  const p = document.createElement('div');
+  p.innerHTML = procesarMensaje(texto) || " ";
+  div.appendChild(p);
+  p.querySelectorAll('.copy-btn').forEach(btn => { btn.onclick = () => copiarCodigo(btn); });
 
   if (tipo === 'ai') {
     const tools = document.createElement('div'); tools.className = 'ai-tools';
@@ -1048,6 +1220,21 @@ function agregarMensaje(texto, tipo, esCreadorStyle = false, noGuardar = false) 
   }
   revisarEstado();
   setInterval(revisarEstado, 60000);
+
+  // ===== TECLADO: que no tape la barra de escribir =====
+  function ajustarAlturaTeclado() {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const alto = Math.round(vv.height) + 'px';
+    document.documentElement.style.height = alto;
+    document.body.style.height = alto;
+    window.scrollTo(0, 0);
+    if (document.activeElement && document.activeElement.id === 'userInput') scrollToBottom();
+  }
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', ajustarAlturaTeclado);
+    window.visualViewport.addEventListener('scroll', () => window.scrollTo(0, 0));
+  }
   
   window.onload = iniciarSecuencia;
   if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
