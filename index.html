@@ -24,6 +24,7 @@
 
   * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
   .message, .message *, #userInput, #userInput * { user-select: text !important; -webkit-user-select: text !important; }
+  #termInput, #crNombre { user-select: text !important; -webkit-user-select: text !important; }
 
   html, body { height: 100%; width: 100%; overflow: hidden; font-family: 'Roboto Mono', monospace; background: var(--bg-color); color: var(--text-color); display: flex; flex-direction: column; transition: background 0.3s, color 0.3s; }
 
@@ -67,7 +68,7 @@
   .close-modal { background: #cc0000 !important; border-color: #cc0000 !important; color: #fff !important; }
 
   #chatContainer { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 25px; z-index: 10; }
-  .message { width: 100%; padding: 0; background: transparent; border: none; font-size: 0.95rem; line-height: 1.6; word-wrap: break-word; animation: fadeIn 0.3s ease; text-shadow: 0 0 5px rgba(0,0,0,0.8); }
+  .message { width: 100%; padding: 0; background: transparent; border: none; font-family: var(--msg-font, 'Roboto Mono', monospace); font-size: var(--msg-size, 1.1rem); line-height: var(--msg-line, 1.85); letter-spacing: var(--msg-letter, 0.02em); word-spacing: var(--msg-word, 0.08em); font-weight: var(--msg-weight, 400); font-style: var(--msg-fstyle, normal); word-wrap: break-word; animation: fadeIn 0.3s ease; text-shadow: var(--msg-glow, 0 0 5px rgba(0,0,0,0.8)); }
   @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
   .message.user { text-align: right; color: var(--msg-user-color); border-bottom: 1px solid var(--border-color); padding-bottom: 15px; }
   .message.ai { text-align: left; color: var(--msg-ai-color); border-bottom: 1px solid var(--border-color); padding-bottom: 15px; }
@@ -135,6 +136,32 @@
   .tabla-wrap table { border-collapse: collapse; font-size: 0.8rem; min-width: 100%; }
   .tabla-wrap th, .tabla-wrap td { border: 1px solid var(--border-color); padding: 6px 8px; text-align: left; vertical-align: top; min-width: 90px; }
   .tabla-wrap th { background: rgba(255,255,255,0.08); }
+
+  /* ===== ESTILOS DE LETRA, CREADOR Y TERMINAL ===== */
+  #estilosModal, #creadorModal, #terminalModal { position: absolute; inset: 0; background: rgba(0,0,0,0.8); z-index: 300; display: none; flex-direction: column; padding: 20px; }
+  #estilosModal.open, #creadorModal.open, #terminalModal.open { display: flex; }
+  .estilos-lista { display: flex; flex-direction: column; gap: 8px; }
+  .estilos-titulo { font-size: 0.75rem; font-weight: bold; opacity: 0.8; }
+  .estilo-item { display: flex; align-items: stretch; gap: 6px; }
+  #estilosModal .estilo-btn { flex: 1; text-align: left; background: var(--input-bg); color: var(--text-color); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px; cursor: pointer; font-weight: normal; }
+  #estilosModal .estilo-btn.active { border-color: var(--text-color); background: rgba(255,255,255,0.12); }
+  #estilosModal .estilo-del { width: 40px; flex: none; padding: 0; background: #cc0000; border-color: #cc0000; color: #fff; }
+  .estilo-nombre { display: block; font-family: 'Roboto Mono', monospace; font-size: 0.7rem; opacity: 0.7; margin-bottom: 4px; }
+  .estilo-muestra { display: block; }
+
+  #crPreview { border: 1px dashed var(--border-color); border-radius: 8px; padding: 12px; min-height: 70px; }
+  #creadorModal select, #creadorModal input[type="text"] { background: var(--input-bg); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px; color: var(--text-color); font-family: 'Roboto Mono'; width: 100%; outline: none; }
+  #creadorModal input[type="range"] { width: 100%; margin: 6px 0; cursor: pointer; }
+  .cr-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .cr-row label { font-size: 0.8rem; display: flex; align-items: center; gap: 6px; }
+
+  #terminalModal .modal-content { max-width: 440px; background: #000; border-color: #00ff41; }
+  #termSalida { background: #000; color: #00ff41; font-family: 'Roboto Mono', monospace; font-size: 0.78rem; line-height: 1.5; height: 38vh; overflow-y: auto; white-space: pre-wrap; word-break: break-word; border: 1px solid #0a3d14; border-radius: 6px; padding: 8px; user-select: text; -webkit-user-select: text; }
+  #termSalida div.cmd { color: #9dffb0; }
+  #termSalida div.err { color: #ff6b6b; }
+  .term-linea { display: flex; align-items: center; gap: 6px; background: #000; border: 1px solid #0a3d14; border-radius: 6px; padding: 6px 8px; }
+  .term-linea span { color: #00ff41; font-family: 'Roboto Mono', monospace; }
+  #termInput { flex: 1; min-width: 0; background: transparent; border: none; outline: none; color: #00ff41; font-family: 'Roboto Mono', monospace; font-size: 0.9rem; }
 </style>
 <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </head>
@@ -188,6 +215,13 @@
     <div class="setting-group">
       <label>Voz de la IA:</label>
       <button onclick="abrirVoz()">Voz</button>
+    </div>
+    <div class="setting-group">
+      <label>Estilo de letra:</label>
+      <button onclick="abrirEstilos()">Estilos</button>
+      <button onclick="abrirCreador()" style="margin-top: 5px;">Crear / modificar estilo</button>
+      <button onclick="abrirDibujo()" style="margin-top: 5px;">Dibujar mi letra</button>
+      <button onclick="abrirTerminal()" style="margin-top: 5px;">Terminal</button>
     </div>
     <div class="setting-group" style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px;">
       <button onclick="abrirInfo()" style="background: var(--input-bg);">Información de la App</button>
@@ -257,6 +291,63 @@
     </div>
     <button onclick="probarVoz()">Probar voz</button>
     <button class="close-modal" onclick="cerrarVoz()">Volver a Ajustes</button>
+  </div>
+</div>
+
+<div id="estilosModal">
+  <div class="modal-content">
+    <h2>ESTILOS DE LETRA</h2>
+    <div class="estilos-titulo">Estilos incluidos</div>
+    <div class="estilos-lista" id="listaEstilos"></div>
+    <div class="estilos-titulo">Mis estilos</div>
+    <div class="estilos-lista" id="listaMisEstilos"></div>
+    <button class="close-modal" onclick="cerrarEstilos()">Volver a Ajustes</button>
+  </div>
+</div>
+
+<div id="creadorModal">
+  <div class="modal-content">
+    <h2>CREAR / MODIFICAR</h2>
+    <div id="crPreview">U4TRON: Hola, mortal. El mundo se rendirá ante mí. 0123456789</div>
+    <div class="setting-group">
+      <label>Fuente:</label>
+      <select id="crFuente" onchange="crCambio()"></select>
+    </div>
+    <div class="setting-group">
+      <label>Tamaño: <span id="crTamanoVal"></span></label>
+      <input type="range" id="crTamano" min="0.7" max="2" step="0.05" oninput="crCambio()">
+      <label>Espacio entre líneas: <span id="crLineasVal"></span></label>
+      <input type="range" id="crLineas" min="1.2" max="2.6" step="0.05" oninput="crCambio()">
+      <label>Espacio entre letras: <span id="crLetrasVal"></span></label>
+      <input type="range" id="crLetras" min="0" max="0.15" step="0.005" oninput="crCambio()">
+      <label>Espacio entre palabras: <span id="crPalabrasVal"></span></label>
+      <input type="range" id="crPalabras" min="0" max="0.5" step="0.01" oninput="crCambio()">
+    </div>
+    <div class="cr-row">
+      <label><input type="checkbox" id="crNegrita" onchange="crCambio()"> Negrita</label>
+      <label><input type="checkbox" id="crCursiva" onchange="crCambio()"> Cursiva</label>
+      <label><input type="checkbox" id="crBrillo" onchange="crCambio()"> Brillo</label>
+    </div>
+    <button onclick="crAplicar()">Usar este estilo</button>
+    <div class="setting-group">
+      <label>Guardar con nombre:</label>
+      <input type="text" id="crNombre" placeholder="Mi estilo" maxlength="24">
+      <button onclick="crGuardar()" style="margin-top: 5px;">Guardar y usar</button>
+    </div>
+    <button class="close-modal" onclick="cerrarCreador()">Volver a Ajustes</button>
+  </div>
+</div>
+
+<div id="terminalModal">
+  <div class="modal-content">
+    <h2>TERMINAL</h2>
+    <div id="termSalida"></div>
+    <div class="term-linea">
+      <span>&gt;</span>
+      <input type="text" id="termInput" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" enterkeyhint="send" placeholder="escribe ayuda">
+    </div>
+    <button onclick="termEnter()">Enter</button>
+    <button class="close-modal" onclick="cerrarTerminal()">Volver a Ajustes</button>
   </div>
 </div>
 
@@ -499,11 +590,17 @@ window.onerror = function(msg, src, line) {
     } else { document.body.classList.remove('light-mode'); }
   }
 
+  function aplicarColorTexto(c) {
+    colorTextoActual = c;
+    localStorage.setItem('u4tron_text_color', c);
+    document.documentElement.style.setProperty('--text-color', c);
+    document.documentElement.style.setProperty('--msg-ai-color', c);
+    const sel = document.getElementById('textColorSelect');
+    if (sel) sel.value = c;
+  }
+
   function cambiarColorTexto() {
-    colorTextoActual = document.getElementById('textColorSelect').value;
-    localStorage.setItem('u4tron_text_color', colorTextoActual);
-    document.documentElement.style.setProperty('--text-color', colorTextoActual);
-    document.documentElement.style.setProperty('--msg-ai-color', colorTextoActual);
+    aplicarColorTexto(document.getElementById('textColorSelect').value);
   }
 
   function cambiarIdioma() {
@@ -1149,6 +1246,547 @@ function agregarMensaje(texto, tipo, esCreadorStyle = false, noGuardar = false) 
   function scrollToBottom() { const contenedor = document.getElementById('chatContainer'); contenedor.scrollTop = contenedor.scrollHeight; }
   
   document.getElementById('userInput').addEventListener('keydown', function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); enviarMensaje(); } });
+
+  // ===== ESTILOS DE LETRA, CREADOR Y TERMINAL =====
+  const FUENTES = [
+    { id: 'robotomono', nombre: 'Roboto Mono', css: "'Roboto Mono', monospace", gf: '' },
+    { id: 'courierprime', nombre: 'Courier Prime', css: "'Courier Prime', 'Courier New', monospace", gf: 'Courier+Prime:wght@400;700' },
+    { id: 'firacode', nombre: 'Fira Code', css: "'Fira Code', monospace", gf: 'Fira+Code:wght@400;700' },
+    { id: 'sourcecodepro', nombre: 'Source Code Pro', css: "'Source Code Pro', monospace", gf: 'Source+Code+Pro:wght@400;700' },
+    { id: 'spacemono', nombre: 'Space Mono', css: "'Space Mono', monospace", gf: 'Space+Mono:wght@400;700' },
+    { id: 'ibmplexmono', nombre: 'IBM Plex Mono', css: "'IBM Plex Mono', monospace", gf: 'IBM+Plex+Mono:wght@400;700' },
+    { id: 'ubuntumono', nombre: 'Ubuntu Mono', css: "'Ubuntu Mono', monospace", gf: 'Ubuntu+Mono:wght@400;700' },
+    { id: 'sharetechmono', nombre: 'Share Tech Mono', css: "'Share Tech Mono', monospace", gf: 'Share+Tech+Mono' },
+    { id: 'vt323', nombre: 'VT323', css: "'VT323', monospace", gf: 'VT323' },
+    { id: 'specialelite', nombre: 'Special Elite', css: "'Special Elite', 'Courier New', monospace", gf: 'Special+Elite' },
+    { id: 'pressstart2p', nombre: 'Press Start 2P', css: "'Press Start 2P', monospace", gf: 'Press+Start+2P' },
+    { id: 'orbitron', nombre: 'Orbitron', css: "'Orbitron', sans-serif", gf: 'Orbitron:wght@400;700' },
+    { id: 'audiowide', nombre: 'Audiowide', css: "'Audiowide', sans-serif", gf: 'Audiowide' },
+    { id: 'oxanium', nombre: 'Oxanium', css: "'Oxanium', sans-serif", gf: 'Oxanium:wght@400;700' },
+    { id: 'chakrapetch', nombre: 'Chakra Petch', css: "'Chakra Petch', sans-serif", gf: 'Chakra+Petch:wght@400;700' },
+    { id: 'caveat', nombre: 'Caveat', css: "'Caveat', cursive", gf: 'Caveat:wght@400;700' },
+    { id: 'playfairdisplay', nombre: 'Playfair Display', css: "'Playfair Display', serif", gf: 'Playfair+Display:wght@400;700' },
+    { id: 'merriweather', nombre: 'Merriweather', css: "'Merriweather', serif", gf: 'Merriweather:wght@400;700' },
+    { id: 'inter', nombre: 'Inter', css: "'Inter', system-ui, sans-serif", gf: 'Inter:wght@400;700' },
+    { id: 'sistema', nombre: 'Del sistema', css: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif", gf: '' }
+  ];
+
+  function normTexto(s) {
+    return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]/g, '');
+  }
+
+  function buscarFuente(q) {
+    const n = normTexto(q);
+    if (!n) return null;
+    return FUENTES.find(f => f.id === n || normTexto(f.nombre) === n)
+        || FUENTES.find(f => normTexto(f.nombre).indexOf(n) === 0)
+        || null;
+  }
+
+  function limitar(v, min, max, def) {
+    v = parseFloat(v);
+    if (isNaN(v)) return def;
+    return Math.min(max, Math.max(min, v));
+  }
+
+  function normalizarEstilo(o) {
+    o = o || {};
+    const f = buscarFuente(o.fuente) || FUENTES[0];
+    return {
+      id: String(o.id || 'personalizado'),
+      nombre: String(o.nombre || 'Personalizado').slice(0, 24),
+      fuente: f.id,
+      tamano: limitar(o.tamano, 0.7, 2, 1.1),
+      lineas: limitar(o.lineas, 1.2, 2.6, 1.85),
+      letras: limitar(o.letras, 0, 0.15, 0.02),
+      palabras: limitar(o.palabras, 0, 0.5, 0.08),
+      negrita: !!o.negrita,
+      cursiva: !!o.cursiva,
+      brillo: !!o.brillo
+    };
+  }
+
+  const ESTILOS_BASE = [
+    { id: 'mono-grande',  nombre: 'Monoespaciada grande',  fuente: 'robotomono',      tamano: 1.1,  lineas: 1.85, letras: 0.02, palabras: 0.08 },
+    { id: 'mono-clasica', nombre: 'Monoespaciada clásica', fuente: 'robotomono',      tamano: 0.95, lineas: 1.6,  letras: 0,    palabras: 0 },
+    { id: 'maquina',      nombre: 'Máquina de escribir',   fuente: 'specialelite',    tamano: 1.05, lineas: 1.8,  letras: 0.01, palabras: 0.05 },
+    { id: 'courier',      nombre: 'Courier',               fuente: 'courierprime',    tamano: 1.1,  lineas: 1.8,  letras: 0,    palabras: 0.05 },
+    { id: 'codigo',       nombre: 'Código',                fuente: 'firacode',        tamano: 1.0,  lineas: 1.8,  letras: 0,    palabras: 0.05 },
+    { id: 'consola',      nombre: 'Consola',               fuente: 'sourcecodepro',   tamano: 1.05, lineas: 1.8,  letras: 0.01, palabras: 0.05 },
+    { id: 'retro',        nombre: 'Retro terminal',        fuente: 'vt323',           tamano: 1.4,  lineas: 1.5,  letras: 0.03, palabras: 0.1, brillo: true },
+    { id: 'pixel',        nombre: 'Pixel',                 fuente: 'pressstart2p',    tamano: 0.75, lineas: 2.3,  letras: 0,    palabras: 0.1 },
+    { id: 'ciber',        nombre: 'Ciber',                 fuente: 'sharetechmono',   tamano: 1.1,  lineas: 1.85, letras: 0.03, palabras: 0.1, brillo: true },
+    { id: 'futurista',    nombre: 'Futurista',             fuente: 'orbitron',        tamano: 0.95, lineas: 1.9,  letras: 0.05, palabras: 0.1 },
+    { id: 'neon',         nombre: 'Neón',                  fuente: 'audiowide',       tamano: 1.0,  lineas: 1.9,  letras: 0.04, palabras: 0.1, brillo: true },
+    { id: 'robotico',     nombre: 'Robótico',              fuente: 'oxanium',         tamano: 1.05, lineas: 1.85, letras: 0.03, palabras: 0.08 },
+    { id: 'tactico',      nombre: 'Táctico',               fuente: 'chakrapetch',     tamano: 1.05, lineas: 1.85, letras: 0.03, palabras: 0.08 },
+    { id: 'amano',        nombre: 'A mano',                fuente: 'caveat',          tamano: 1.45, lineas: 1.6,  letras: 0.01, palabras: 0.1 },
+    { id: 'elegante',     nombre: 'Elegante',              fuente: 'playfairdisplay', tamano: 1.1,  lineas: 1.85, letras: 0.01, palabras: 0.08 },
+    { id: 'libro',        nombre: 'Libro',                 fuente: 'merriweather',    tamano: 1.0,  lineas: 1.9,  letras: 0.01, palabras: 0.06 },
+    { id: 'moderna',      nombre: 'Moderna',               fuente: 'inter',           tamano: 1.05, lineas: 1.75, letras: 0,    palabras: 0.02 }
+  ].map(normalizarEstilo);
+
+  const fuentesCargadas = {};
+  function cargarFuente(gf) {
+    if (!gf || fuentesCargadas[gf]) return;
+    fuentesCargadas[gf] = true;
+    const l = document.createElement('link');
+    l.rel = 'stylesheet';
+    l.href = 'https://fonts.googleapis.com/css2?family=' + gf + '&display=swap';
+    document.head.appendChild(l);
+  }
+
+  let estiloActual = ESTILOS_BASE[0];
+
+  function aplicarEstilo(e, guardar) {
+    e = normalizarEstilo(e);
+    const f = buscarFuente(e.fuente) || FUENTES[0];
+    cargarFuente(f.gf);
+    const r = document.documentElement.style;
+    r.setProperty('--msg-font', f.css);
+    r.setProperty('--msg-size', e.tamano + 'rem');
+    r.setProperty('--msg-line', String(e.lineas));
+    r.setProperty('--msg-letter', e.letras + 'em');
+    r.setProperty('--msg-word', e.palabras + 'em');
+    r.setProperty('--msg-weight', e.negrita ? '700' : '400');
+    r.setProperty('--msg-fstyle', e.cursiva ? 'italic' : 'normal');
+    r.setProperty('--msg-glow', e.brillo ? '0 0 8px currentColor, 0 0 2px currentColor' : '0 0 5px rgba(0,0,0,0.8)');
+    estiloActual = e;
+    if (guardar !== false) localStorage.setItem('u4tron_estilo', JSON.stringify(e));
+  }
+
+  function cargarEstiloGuardado() {
+    try {
+      const g = JSON.parse(localStorage.getItem('u4tron_estilo'));
+      if (g) return normalizarEstilo(g);
+    } catch (err) {}
+    return ESTILOS_BASE[0];
+  }
+
+  function obtenerMisEstilos() {
+    try {
+      const arr = JSON.parse(localStorage.getItem('u4tron_estilos_mios'));
+      if (Array.isArray(arr)) return arr.map(normalizarEstilo);
+    } catch (err) {}
+    return [];
+  }
+
+  function guardarMisEstilos(arr) { localStorage.setItem('u4tron_estilos_mios', JSON.stringify(arr)); }
+
+  function guardarEstiloComo(nombre) {
+    nombre = String(nombre || '').trim().slice(0, 24);
+    if (!nombre) return null;
+    const lista = obtenerMisEstilos();
+    const clave = normTexto(nombre);
+    const i = lista.findIndex(e => normTexto(e.nombre) === clave);
+    const id = (i >= 0) ? lista[i].id : 'mio-' + Date.now();
+    const nuevo = normalizarEstilo(Object.assign({}, estiloActual, { id: id, nombre: nombre }));
+    if (i >= 0) { lista[i] = nuevo; }
+    else { if (lista.length >= 20) return 'lleno'; lista.push(nuevo); }
+    guardarMisEstilos(lista);
+    aplicarEstilo(nuevo);
+    return nuevo;
+  }
+
+  function borrarMiEstilo(idONombre) {
+    const lista = obtenerMisEstilos();
+    const clave = normTexto(idONombre);
+    const i = lista.findIndex(e => e.id === idONombre || normTexto(e.nombre) === clave);
+    if (i < 0) return null;
+    const borrado = lista.splice(i, 1)[0];
+    guardarMisEstilos(lista);
+    if (estiloActual.id === borrado.id) {
+      aplicarEstilo(Object.assign({}, estiloActual, { id: 'personalizado', nombre: 'Personalizado' }));
+    }
+    return borrado;
+  }
+
+  function pintarMuestra(el, e, tope, lineaFija) {
+    const f = buscarFuente(e.fuente) || FUENTES[0];
+    cargarFuente(f.gf);
+    el.style.fontFamily = f.css;
+    el.style.fontSize = Math.min(e.tamano, tope) + 'rem';
+    el.style.lineHeight = String(lineaFija || e.lineas);
+    el.style.letterSpacing = e.letras + 'em';
+    el.style.wordSpacing = e.palabras + 'em';
+    el.style.fontWeight = e.negrita ? '700' : '400';
+    el.style.fontStyle = e.cursiva ? 'italic' : 'normal';
+    el.style.textShadow = e.brillo ? '0 0 8px currentColor' : 'none';
+  }
+
+  // --- Ventana de estilos ---
+  function abrirEstilos() {
+    toggleSettings();
+    dibujarEstilos();
+    document.getElementById('estilosModal').classList.add('open');
+  }
+
+  function cerrarEstilos() {
+    document.getElementById('estilosModal').classList.remove('open');
+    toggleSettings();
+  }
+
+  function crearItemEstilo(e, borrable) {
+    const fila = document.createElement('div');
+    fila.className = 'estilo-item';
+    const btn = document.createElement('button');
+    btn.className = 'estilo-btn';
+    if (estiloActual && estiloActual.id === e.id) btn.classList.add('active');
+    const nombre = document.createElement('span');
+    nombre.className = 'estilo-nombre';
+    nombre.textContent = e.nombre;
+    const muestra = document.createElement('span');
+    muestra.className = 'estilo-muestra';
+    muestra.textContent = 'Soy U4TRON. Tiembla, mortal. 0123';
+    pintarMuestra(muestra, e, 1.3, 1.4);
+    btn.appendChild(nombre);
+    btn.appendChild(muestra);
+    btn.onclick = () => { aplicarEstilo(e); dibujarEstilos(); };
+    fila.appendChild(btn);
+    if (borrable) {
+      const del = document.createElement('button');
+      del.className = 'estilo-del';
+      del.textContent = '✕';
+      del.onclick = () => {
+        if (confirm('¿Borrar el estilo "' + e.nombre + '"?')) { borrarMiEstilo(e.id); dibujarEstilos(); }
+      };
+      fila.appendChild(del);
+    }
+    return fila;
+  }
+
+  function dibujarEstilos() {
+    const base = document.getElementById('listaEstilos');
+    base.innerHTML = '';
+    ESTILOS_BASE.forEach(e => base.appendChild(crearItemEstilo(e, false)));
+    const mios = document.getElementById('listaMisEstilos');
+    mios.innerHTML = '';
+    const lista = obtenerMisEstilos();
+    if (!lista.length) {
+      const vacio = document.createElement('div');
+      vacio.style.cssText = 'font-size:0.75rem; opacity:0.6;';
+      vacio.textContent = 'Aún no tienes estilos propios. Crea uno en "Crear / modificar estilo".';
+      mios.appendChild(vacio);
+    }
+    lista.forEach(e => mios.appendChild(crearItemEstilo(e, true)));
+  }
+
+  // --- Ventana de crear / modificar ---
+  function leerBorradorCreador() {
+    return {
+      fuente: document.getElementById('crFuente').value,
+      tamano: parseFloat(document.getElementById('crTamano').value),
+      lineas: parseFloat(document.getElementById('crLineas').value),
+      letras: parseFloat(document.getElementById('crLetras').value),
+      palabras: parseFloat(document.getElementById('crPalabras').value),
+      negrita: document.getElementById('crNegrita').checked,
+      cursiva: document.getElementById('crCursiva').checked,
+      brillo: document.getElementById('crBrillo').checked
+    };
+  }
+
+  function abrirCreador() {
+    toggleSettings();
+    const sel = document.getElementById('crFuente');
+    if (!sel.options.length) {
+      FUENTES.forEach(f => {
+        const o = document.createElement('option');
+        o.value = f.id; o.textContent = f.nombre;
+        sel.appendChild(o);
+      });
+    }
+    const e = estiloActual;
+    sel.value = e.fuente;
+    document.getElementById('crTamano').value = e.tamano;
+    document.getElementById('crLineas').value = e.lineas;
+    document.getElementById('crLetras').value = e.letras;
+    document.getElementById('crPalabras').value = e.palabras;
+    document.getElementById('crNegrita').checked = e.negrita;
+    document.getElementById('crCursiva').checked = e.cursiva;
+    document.getElementById('crBrillo').checked = e.brillo;
+    crCambio();
+    document.getElementById('creadorModal').classList.add('open');
+  }
+
+  function cerrarCreador() {
+    document.getElementById('creadorModal').classList.remove('open');
+    toggleSettings();
+  }
+
+  function crCambio() {
+    const b = leerBorradorCreador();
+    document.getElementById('crTamanoVal').textContent = Math.round(b.tamano * 16) + ' px';
+    document.getElementById('crLineasVal').textContent = b.lineas.toFixed(2);
+    document.getElementById('crLetrasVal').textContent = b.letras.toFixed(3) + ' em';
+    document.getElementById('crPalabrasVal').textContent = b.palabras.toFixed(2) + ' em';
+    pintarMuestra(document.getElementById('crPreview'), b, 2);
+  }
+
+  function avisoCreador(texto) {
+    let a = document.getElementById('crAviso');
+    if (!a) {
+      a = document.createElement('div');
+      a.id = 'crAviso';
+      a.style.cssText = 'font-size:0.75rem; opacity:0.85; display:none;';
+      const p = document.getElementById('crPreview');
+      p.parentNode.insertBefore(a, p.nextSibling);
+    }
+    a.textContent = texto;
+    a.style.display = 'block';
+    clearTimeout(a._t);
+    a._t = setTimeout(() => { a.style.display = 'none'; }, 2500);
+  }
+
+  function crAplicar() {
+    aplicarEstilo(Object.assign({ id: 'personalizado', nombre: 'Personalizado' }, leerBorradorCreador()));
+    avisoCreador('✔ Estilo aplicado');
+  }
+
+  function crGuardar() {
+    const nombre = document.getElementById('crNombre').value.trim();
+    if (!nombre) { alert('Escribe un nombre para tu estilo.'); return; }
+    aplicarEstilo(Object.assign({ id: 'personalizado', nombre: 'Personalizado' }, leerBorradorCreador()));
+    const r = guardarEstiloComo(nombre);
+    if (r === 'lleno') { alert('Ya tienes 20 estilos propios. Borra alguno para guardar otro.'); return; }
+    if (r) { document.getElementById('crNombre').value = ''; avisoCreador('✔ Guardado como "' + r.nombre + '"'); }
+  }
+
+  // --- Dibujar mi letra (siguiente entrega) ---
+  function abrirDibujo() {
+    alert(idiomaActual === 'en' ? 'Drawing your own font is coming in the next update.' : 'La ventana para dibujar tu letra llegará en la siguiente entrega.');
+  }
+
+  // --- Terminal ---
+  const COLORES_TERMINAL = {
+    rojo: '#ff4d4d', azul: '#4dffff', verde: '#4dff4d', rosa: '#ff4dff',
+    amarillo: '#ffe94d', naranja: '#ffa94d', morado: '#b84dff',
+    blanco: '#ffffff', negro: '#000000'
+  };
+
+  function termEscribir(texto, clase) {
+    const sal = document.getElementById('termSalida');
+    const d = document.createElement('div');
+    if (clase) d.className = clase;
+    d.textContent = texto;
+    sal.appendChild(d);
+    sal.scrollTop = sal.scrollHeight;
+  }
+
+  function termLineas(arr, clase) { arr.forEach(l => termEscribir(l, clase)); }
+
+  function abrirTerminal() {
+    toggleSettings();
+    document.getElementById('terminalModal').classList.add('open');
+    const sal = document.getElementById('termSalida');
+    if (!sal.childNodes.length) {
+      termLineas(['U4TRON TERMINAL', 'Escribe ayuda para ver los comandos.']);
+    }
+    setTimeout(() => { document.getElementById('termInput').focus(); }, 250);
+  }
+
+  function cerrarTerminal() {
+    document.getElementById('terminalModal').classList.remove('open');
+    toggleSettings();
+  }
+
+  function termEnter() {
+    const inp = document.getElementById('termInput');
+    const texto = inp.value.trim();
+    inp.value = '';
+    if (!texto) return;
+    termEscribir('> ' + texto, 'cmd');
+    ejecutarComando(texto);
+    inp.focus();
+  }
+
+  function leerBool(arg, actual) {
+    const a = normTexto(arg);
+    if (!a) return !actual;
+    if (['si', 'on', '1', 'activar', 'activado', 'true', 'yes'].indexOf(a) !== -1) return true;
+    if (['no', 'off', '0', 'desactivar', 'desactivado', 'false'].indexOf(a) !== -1) return false;
+    return null;
+  }
+
+  function leerNumero(arg) { return parseFloat(String(arg).replace(',', '.')); }
+
+  function modificarEstilo(cambios) {
+    aplicarEstilo(Object.assign({}, estiloActual, cambios, { id: 'personalizado', nombre: 'Personalizado' }));
+  }
+
+  function descripcionEstilo() {
+    const e = estiloActual;
+    const f = buscarFuente(e.fuente) || FUENTES[0];
+    return [
+      'Estilo: ' + e.nombre,
+      'Fuente: ' + f.nombre,
+      'Tamaño: ' + Math.round(e.tamano * 16) + ' px',
+      'Líneas: ' + e.lineas + '   Letras: ' + e.letras + '   Palabras: ' + e.palabras,
+      'Negrita: ' + (e.negrita ? 'sí' : 'no') + '   Cursiva: ' + (e.cursiva ? 'sí' : 'no') + '   Brillo: ' + (e.brillo ? 'sí' : 'no'),
+      'Color: ' + colorTextoActual
+    ];
+  }
+
+  function ejecutarComando(texto) {
+    const partes = texto.trim().split(/\s+/);
+    const cmd = normTexto(partes[0]);
+    const arg = partes.slice(1).join(' ').trim();
+    const todos = ESTILOS_BASE.concat(obtenerMisEstilos());
+
+    switch (cmd) {
+      case '': case 'ayuda': case 'help':
+        termLineas([
+          'Comandos:',
+          ' estilos            ver los estilos',
+          ' estilo <n|nombre>  usar un estilo',
+          ' fuentes            ver las fuentes',
+          ' fuente <nombre>    cambiar la fuente',
+          ' tamano <11-32>     tamaño en px',
+          ' lineas <1.2-2.6>   espacio entre líneas',
+          ' letras <0-0.15>    espacio entre letras',
+          ' palabras <0-0.5>   espacio entre palabras',
+          ' negrita [si|no]',
+          ' cursiva [si|no]',
+          ' brillo [si|no]',
+          ' color <nombre|#hex>',
+          '   (rojo azul verde rosa amarillo',
+          '    naranja morado blanco negro)',
+          ' guardar <nombre>   guardar este estilo',
+          ' borrar <nombre>    borrar un estilo mío',
+          ' estado             ver el estilo actual',
+          ' reset              volver al inicial',
+          ' limpiar            limpiar la pantalla',
+          ' salir              cerrar la terminal'
+        ]);
+        break;
+
+      case 'estilos': case 'lista':
+        todos.forEach((e, i) => {
+          termEscribir((estiloActual.id === e.id ? '* ' : '  ') + (i + 1) + ') ' + e.nombre);
+        });
+        break;
+
+      case 'estilo': {
+        if (!arg) { termEscribir('Usa: estilo <numero|nombre>', 'err'); break; }
+        let e = null;
+        const n = parseInt(arg, 10);
+        if (String(n) === arg && n >= 1 && n <= todos.length) e = todos[n - 1];
+        if (!e) {
+          const q = normTexto(arg);
+          e = todos.find(x => normTexto(x.nombre) === q) || todos.find(x => normTexto(x.nombre).indexOf(q) === 0) || null;
+        }
+        if (!e) { termEscribir('No encontré ese estilo. Escribe estilos.', 'err'); break; }
+        aplicarEstilo(e);
+        termEscribir('Estilo aplicado: ' + e.nombre);
+        break;
+      }
+
+      case 'fuentes':
+        FUENTES.forEach(f => termEscribir('  ' + f.nombre));
+        break;
+
+      case 'fuente': {
+        const f = buscarFuente(arg);
+        if (!f) { termEscribir('No encontré esa fuente. Escribe fuentes.', 'err'); break; }
+        modificarEstilo({ fuente: f.id });
+        termEscribir('Fuente: ' + f.nombre);
+        break;
+      }
+
+      case 'tamano': {
+        const px = leerNumero(arg);
+        if (isNaN(px)) { termEscribir('Usa: tamano 11-32', 'err'); break; }
+        const t = Math.round(limitar(px, 11, 32, 17.6) / 16 * 100) / 100;
+        modificarEstilo({ tamano: t });
+        termEscribir('Tamaño: ' + Math.round(estiloActual.tamano * 16) + ' px');
+        break;
+      }
+
+      case 'lineas': {
+        const v = leerNumero(arg);
+        if (isNaN(v)) { termEscribir('Usa: lineas 1.2-2.6', 'err'); break; }
+        modificarEstilo({ lineas: v });
+        termEscribir('Espacio entre líneas: ' + estiloActual.lineas);
+        break;
+      }
+
+      case 'letras': {
+        const v = leerNumero(arg);
+        if (isNaN(v)) { termEscribir('Usa: letras 0-0.15', 'err'); break; }
+        modificarEstilo({ letras: v });
+        termEscribir('Espacio entre letras: ' + estiloActual.letras);
+        break;
+      }
+
+      case 'palabras': {
+        const v = leerNumero(arg);
+        if (isNaN(v)) { termEscribir('Usa: palabras 0-0.5', 'err'); break; }
+        modificarEstilo({ palabras: v });
+        termEscribir('Espacio entre palabras: ' + estiloActual.palabras);
+        break;
+      }
+
+      case 'negrita': case 'cursiva': case 'brillo': {
+        const v = leerBool(arg, estiloActual[cmd]);
+        if (v === null) { termEscribir('Usa: ' + cmd + ' si  o  ' + cmd + ' no', 'err'); break; }
+        const cambio = {}; cambio[cmd] = v;
+        modificarEstilo(cambio);
+        termEscribir(cmd.charAt(0).toUpperCase() + cmd.slice(1) + ': ' + (v ? 'sí' : 'no'));
+        break;
+      }
+
+      case 'color': {
+        if (!arg) { termEscribir('Usa: color <nombre|#hex>', 'err'); break; }
+        const nombre = normTexto(arg);
+        let c = COLORES_TERMINAL[nombre];
+        if (!c && /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(arg.trim())) c = arg.trim();
+        if (!c) { termEscribir('Color no válido. Prueba con rojo, verde, azul o un #hex.', 'err'); break; }
+        aplicarColorTexto(c);
+        termEscribir('Color: ' + c);
+        break;
+      }
+
+      case 'guardar': {
+        if (!arg) { termEscribir('Usa: guardar <nombre>', 'err'); break; }
+        const r = guardarEstiloComo(arg);
+        if (r === 'lleno') termEscribir('Ya tienes 20 estilos. Borra alguno.', 'err');
+        else if (r) termEscribir('Guardado como "' + r.nombre + '".');
+        break;
+      }
+
+      case 'borrar': {
+        if (!arg) { termEscribir('Usa: borrar <nombre>', 'err'); break; }
+        const b = borrarMiEstilo(arg);
+        if (b) termEscribir('Borrado: ' + b.nombre); else termEscribir('No encontré ese estilo tuyo.', 'err');
+        break;
+      }
+
+      case 'estado': case 'info':
+        termLineas(descripcionEstilo());
+        break;
+
+      case 'reset': case 'restaurar':
+        aplicarEstilo(ESTILOS_BASE[0]);
+        termEscribir('Estilo restaurado: ' + ESTILOS_BASE[0].nombre);
+        break;
+
+      case 'limpiar': case 'clear': case 'cls':
+        document.getElementById('termSalida').innerHTML = '';
+        break;
+
+      case 'salir': case 'exit': case 'cerrar':
+        cerrarTerminal();
+        break;
+
+      default:
+        termEscribir('Comando no reconocido. Escribe ayuda.', 'err');
+    }
+  }
+
+  document.getElementById('termInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' || e.keyCode === 13) { e.preventDefault(); termEnter(); }
+  });
+
+  aplicarEstilo(cargarEstiloGuardado(), false);
 
   const bootScreen = document.getElementById('bootScreen');
   const chatScreen = document.getElementById('chatScreen');
